@@ -1,26 +1,71 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import netlifyIdentity from 'netlify-identity-widget';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
-// Placeholder user data. Replace with actual authentication logic.
-// Change role to 'Admin' to test admin privileges.
-const placeholderUser = {
-  id: 'user123', // Unique ID for the user
-  username: 'Current User',
-  role: 'Admin', // Possible roles: 'Member', 'Admin'
-};
-
 export const AuthProvider = ({ children }) => {
-  // In a real app, user state would be managed by authentication logic (e.g., login/logout)
-  const [currentUser, setCurrentUser] = useState(placeholderUser); 
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // TODO: Add functions for login, logout, signup that update currentUser
+  useEffect(() => {
+    // Initialize Netlify Identity
+    netlifyIdentity.init();
+
+    // Get the current user if already logged in
+    const user = netlifyIdentity.currentUser();
+    if (user) {
+      setCurrentUser({
+        id: user.id,
+        username: user.user_metadata?.full_name || user.email,
+        email: user.email,
+        role: user.app_metadata?.roles?.[0] || 'Member', // Assuming role is stored in app_metadata
+      });
+    }
+
+    // Bind to login/logout events
+    const handleLogin = (user) => {
+      setCurrentUser({
+        id: user.id,
+        username: user.user_metadata?.full_name || user.email,
+        email: user.email,
+        role: user.app_metadata?.roles?.[0] || 'Member',
+      });
+      netlifyIdentity.close(); // Close the modal on login
+    };
+
+    const handleLogout = () => {
+      setCurrentUser(null);
+      netlifyIdentity.close(); // Close the modal on logout
+    };
+
+    netlifyIdentity.on('login', handleLogin);
+    netlifyIdentity.on('logout', handleLogout);
+
+    // Cleanup listeners on unmount
+    return () => {
+      netlifyIdentity.off('login', handleLogin);
+      netlifyIdentity.off('logout', handleLogout);
+    };
+  }, []);
+
+  const login = () => {
+    netlifyIdentity.open('login');
+  };
+
+  const logout = () => {
+    netlifyIdentity.logout();
+  };
+
+  const signup = () => {
+    netlifyIdentity.open('signup');
+  };
 
   const value = {
     currentUser,
-    // Add auth functions here: login, logout, signup, etc.
+    login,
+    logout,
+    signup,
   };
 
   return (

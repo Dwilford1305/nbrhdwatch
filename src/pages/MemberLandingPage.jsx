@@ -12,6 +12,7 @@ import AdUnitsIcon from '@mui/icons-material/AdUnits';
 import BlogSection from '../components/BlogSection';
 import { useBoards } from '../contexts/BoardContext';
 import IncidentReportForm from '../components/IncidentReportForm';
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
 // Placeholder data (can be replaced with API calls later)
 const upcomingEvents = [
@@ -26,6 +27,7 @@ const safetyTips = [
 
 function MemberLandingPage() {
   const { boards, messages, alerts, blogPosts } = useBoards();
+  const { currentUser } = useAuth(); // Get currentUser
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
 
   // Combine and sort messages and alerts for the recent activity feed
@@ -61,7 +63,7 @@ function MemberLandingPage() {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Welcome! {/* TODO: Integrate user authentication to display username */}
+        Welcome{currentUser ? `, ${currentUser.username}` : '!'}
       </Typography>
 
       <Box sx={{ mb: 4 }}>

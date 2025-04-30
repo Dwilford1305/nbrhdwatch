@@ -1,22 +1,17 @@
 import React from 'react';
-import { Link as RouterLink, useLocation } from 'react-router-dom'; // Import useLocation
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Menu, MenuItem, ListItemIcon } from '@mui/material';
 import SecurityIcon from '@mui/icons-material/Security';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
-
-// Define paths that require the user to be logged in
-const loggedInPaths = ['/members', '/settings', '/admin-preview', '/boards']; // Add /boards
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
 function Header() {
-  const location = useLocation(); // Get current location
+  const location = useLocation();
+  const navigate = useNavigate(); // Add useNavigate
+  const { currentUser, logout, login, signup } = useAuth(); // Get currentUser and auth functions
   const [anchorEl, setAnchorEl] = React.useState(null);
-
-  // Determine if the current path is a logged-in path
-  const isLoggedInArea = loggedInPaths.some(path => location.pathname.startsWith(path));
-
-  // TODO: Replace isLoggedInArea check with actual authentication state check when implemented
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -27,28 +22,30 @@ function Header() {
   };
 
   const handleLogout = () => {
-    // TODO: Implement logout logic
-    console.log("Logout clicked");
+    logout();
     handleClose();
-    // navigate('/'); // Optional: Redirect to public page after logout
+    navigate('/'); // Redirect to public page after logout
   };
 
   return (
     <AppBar position="static" color="primary">
       <Toolbar>
         <SecurityIcon sx={{ mr: 1 }} />
-        <Typography 
-          variant="h6" 
-          component={RouterLink} 
-          to={isLoggedInArea ? "/members" : "/"} // Adjust link based on area
+        <Typography
+          variant="h6"
+          component={RouterLink}
+          to={currentUser ? "/members" : "/"} // Adjust link based on currentUser
           sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}
         >
           Neighborhood Watch
         </Typography>
-        
-        {/* Conditionally render buttons based on logged-in area */}
-        {isLoggedInArea ? (
+
+        {/* Conditionally render buttons based on currentUser */}
+        {currentUser ? (
           <Box>
+            <Typography variant="body1" component="span" sx={{ mr: 2 }}>
+              Hi, {currentUser.username}
+            </Typography>
             <IconButton
               size="large"
               aria-label="account of current user"
@@ -80,6 +77,13 @@ function Header() {
                 </ListItemIcon>
                 Settings
               </MenuItem>
+              {/* Optionally show Admin link based on role */}
+              {currentUser.role === 'Admin' && (
+                <MenuItem component={RouterLink} to="/admin-preview" onClick={handleClose}>
+                  {/* Add an appropriate icon if desired */}
+                  Admin Panel
+                </MenuItem>
+              )}
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
                   <LogoutIcon fontSize="small" />
@@ -90,10 +94,11 @@ function Header() {
           </Box>
         ) : (
           <Box>
-            <Button component={RouterLink} to="/login" color="inherit">
+            {/* Use the login/signup functions from context */}
+            <Button onClick={() => login()} color="inherit">
               Login
             </Button>
-            <Button component={RouterLink} to="/signup" color="inherit">
+            <Button onClick={() => signup()} color="inherit">
               Sign Up
             </Button>
           </Box>

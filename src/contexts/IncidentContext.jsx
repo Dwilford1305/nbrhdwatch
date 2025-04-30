@@ -39,7 +39,6 @@ export const IncidentProvider = ({ children }) => {
       // reporter: // Get current user info here in a real app
     };
     setIncidents(prevIncidents => [newIncident, ...prevIncidents]);
-    console.log("Incident submitted:", newIncident);
     // TODO: Add API call here to persist the incident
   }, []);
 
@@ -49,13 +48,11 @@ export const IncidentProvider = ({ children }) => {
         inc.id === incidentId ? { ...inc, status: newStatus } : inc
       )
     );
-    console.log(`Incident ${incidentId} status updated to ${newStatus}`);
     // TODO: Add API call here to update status
   }, []);
   
   const deleteIncident = useCallback((incidentId) => {
     setIncidents(prevIncidents => prevIncidents.filter(inc => inc.id !== incidentId));
-    console.log(`Incident ${incidentId} deleted`);
     // TODO: Add API call here to delete incident
   }, []);
 

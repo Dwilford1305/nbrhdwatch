@@ -3,18 +3,18 @@ import { useParams, Link as RouterLink } from 'react-router-dom';
 import {
   Container, Typography, Box, Paper, List, ListItem, ListItemText,
   Button, TextField, IconButton, Dialog, DialogActions, DialogContent,
-  DialogContentText, DialogTitle, Divider
+  DialogContentText, DialogTitle, Divider, CircularProgress
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useBoards } from '../contexts/BoardContext';
-import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import { useAuth0 } from '@auth0/auth0-react';
 import { v4 as uuidv4 } from 'uuid';
 
 function BoardPage() {
   const { boardId } = useParams();
   const { boards, messages, addMessage, deleteMessage } = useBoards();
-  const { currentUser } = useAuth(); // Get current user
+  const { user, isAuthenticated, isLoading } = useAuth0();
   const [newMessage, setNewMessage] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState(null);
@@ -24,11 +24,11 @@ function BoardPage() {
   const boardMessages = messages?.[boardId] || [];
 
   const handleAddMessage = () => {
-    if (newMessage.trim() && boardId && currentUser) { // Check currentUser exists
+    if (newMessage.trim() && boardId && isAuthenticated && user) {
       const messageData = {
         text: newMessage.trim(),
-        author: currentUser.username, // Use username from context
-        authorId: currentUser.id, // Use ID from context
+        author: user.name || user.nickname || user.email,
+        authorId: user.sub,
       };
       addMessage(boardId, messageData);
       setNewMessage('');
@@ -50,13 +50,20 @@ function BoardPage() {
 
   const handleDeleteMessage = () => {
     if (messageToDelete && boardId && deleteReason.trim()) {
-      console.log(`Deleting message ID: ${messageToDelete.id} from board ID: ${boardId}`);
-      console.log(`Reason: ${deleteReason}`);
-      console.log(`(Placeholder) Emailing user ${messageToDelete.author} about deletion.`);
+      // TODO: API call to delete message and notify user
       deleteMessage(boardId, messageToDelete.id, deleteReason.trim());
     }
     closeDeleteConfirm();
   };
+
+  if (isLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Loading board...</Typography>
+      </Container>
+    );
+  }
 
   if (!board) {
     return (
@@ -81,7 +88,6 @@ function BoardPage() {
         {board.description}
       </Typography>
 
-      {/* Post New Message Form */}
       <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Post a New Message</Typography>
         <TextField
@@ -93,13 +99,18 @@ function BoardPage() {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           sx={{ mb: 2 }}
+          disabled={!isAuthenticated}
         />
-        <Button variant="contained" onClick={handleAddMessage} disabled={!currentUser}>
+        <Button 
+          variant="contained" 
+          onClick={handleAddMessage} 
+          disabled={!isAuthenticated || !newMessage.trim()}
+        >
           Post Message
         </Button>
+        {!isAuthenticated && <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}> (Log in to post)</Typography>}
       </Paper>
 
-      {/* Message List */}
       <Typography variant="h5" component="h2" gutterBottom>
         Messages
       </Typography>
@@ -113,7 +124,7 @@ function BoardPage() {
                 <ListItem 
                   alignItems="flex-start"
                   secondaryAction={
-                    currentUser && currentUser.id === msg.authorId && (
+                    isAuthenticated && user && user.sub === msg.authorId && (
                       <IconButton edge="end" aria-label="delete" onClick={() => openDeleteConfirm(msg)}>
                         <DeleteIcon />
                       </IconButton>
@@ -132,7 +143,6 @@ function BoardPage() {
         )}
       </Paper>
 
-      {/* Delete Confirmation Dialog with Reason */}
       <Dialog
         open={deleteConfirmOpen}
         onClose={closeDeleteConfirm}

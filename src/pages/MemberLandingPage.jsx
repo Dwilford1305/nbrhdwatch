@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Container, Typography, Box, Grid, Paper, Button, List, ListItem, ListItemText, ListItemIcon, Divider, Stack } from '@mui/material';
+import { Container, Typography, Box, Grid, Paper, Button, List, ListItem, ListItemText, ListItemIcon, Divider, Stack, CircularProgress } from '@mui/material';
 import MapIcon from '@mui/icons-material/Map';
 import ForumIcon from '@mui/icons-material/Forum';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -12,7 +12,7 @@ import AdUnitsIcon from '@mui/icons-material/AdUnits';
 import BlogSection from '../components/BlogSection';
 import { useBoards } from '../contexts/BoardContext';
 import IncidentReportForm from '../components/IncidentReportForm';
-import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import { useAuth0 } from "@auth0/auth0-react";
 
 // Placeholder data (can be replaced with API calls later)
 const upcomingEvents = [
@@ -27,7 +27,7 @@ const safetyTips = [
 
 function MemberLandingPage() {
   const { boards, messages, alerts, blogPosts } = useBoards();
-  const { currentUser } = useAuth(); // Get currentUser
+  const { user, isAuthenticated, isLoading } = useAuth0();
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
 
   // Combine and sort messages and alerts for the recent activity feed
@@ -60,10 +60,20 @@ function MemberLandingPage() {
     setIsReportFormOpen(false);
   };
 
+  // Show loading state while Auth0 is initializing or user is not yet authenticated
+  if (isLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Loading user data...</Typography>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Welcome{currentUser ? `, ${currentUser.username}` : '!'}
+        Welcome{user ? `, ${user.name || user.nickname || user.email}` : '!'}
       </Typography>
 
       <Box sx={{ mb: 4 }}>

@@ -4,7 +4,7 @@ import {
   TextField, Box, Typography, MenuItem, Select, InputLabel, FormControl
 } from '@mui/material';
 import { useIncidents } from '../contexts/IncidentContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const incidentTypes = [
   'Suspicious Activity',
@@ -19,7 +19,7 @@ const incidentTypes = [
 
 function IncidentReportForm({ open, handleClose }) {
   const { addIncident } = useIncidents();
-  const { currentUser } = useAuth();
+  const { user, isAuthenticated } = useAuth0();
   const [incidentType, setIncidentType] = useState('');
   const [location, setLocation] = useState('');
   const [dateTime, setDateTime] = useState(new Date().toISOString().slice(0, 16));
@@ -45,7 +45,8 @@ function IncidentReportForm({ open, handleClose }) {
       location: location.trim(),
       dateTime,
       description: description.trim(),
-      reporter: currentUser?.username || 'Anonymous',
+      reporter: isAuthenticated ? (user?.name || user?.nickname || user?.email) : 'Anonymous',
+      reporterId: isAuthenticated ? user?.sub : null,
     };
 
     addIncident(incidentData);

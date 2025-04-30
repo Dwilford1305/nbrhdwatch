@@ -8,10 +8,11 @@ import {
   Checkbox, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
   Select, MenuItem, FormControl, InputLabel,
-  useMediaQuery, // Added
-  Card, CardContent, CardActions, Grid // Added
+  useMediaQuery, 
+  Card, CardContent, CardActions, Grid,
+  CircularProgress
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles'; // Added
+import { useTheme } from '@mui/material/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -22,14 +23,16 @@ import EditIcon from '@mui/icons-material/Edit';
 import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArticleIcon from '@mui/icons-material/Article';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem'; // Icon for incidents
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useBoards } from '../contexts/BoardContext';
-import { useAuth } from '../contexts/AuthContext';
-import { useIncidents } from '../contexts/IncidentContext'; // Import useIncidents
+import { useAuth0 } from '@auth0/auth0-react';
+import { useIncidents } from '../contexts/IncidentContext';
+
+const AUTH0_NAMESPACE = 'https://neighborhood-watch.com/roles';
 
 // --- User Management Component ---
 function UserManagement() {
-  const { currentUser } = useAuth();
+  const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [users, setUsers] = useState([
     { id: 'user123', username: 'Current User', email: 'current@example.com', role: 'Admin', status: 'Active', joined: '2025-01-15' },
     { id: 'user456', username: 'Jane D.', email: 'jane@example.com', role: 'Member', status: 'Active', joined: '2025-02-20' },
@@ -38,16 +41,16 @@ function UserManagement() {
   ]);
   const [deleteUserConfirmOpen, setDeleteUserConfirmOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const theme = useTheme(); // Added
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Added
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
 
   const handleRoleChange = (userId, newRole) => {
-    console.log(`Changing role for user ${userId} to ${newRole}`);
     setUsers(users.map(user => user.id === userId ? { ...user, role: newRole } : user));
   };
 
   const handleStatusChange = (userId, newStatus) => {
-    console.log(`Changing status for user ${userId} to ${newStatus}`);
     setUsers(users.map(user => user.id === userId ? { ...user, status: newStatus } : user));
   };
 
@@ -63,13 +66,16 @@ function UserManagement() {
 
   const handleDeleteUser = () => {
     if (userToDelete) {
-      console.log(`Deleting user ${userToDelete.username} (ID: ${userToDelete.id})`);
       setUsers(users.filter(user => user.id !== userToDelete.id));
     }
     closeDeleteUserConfirm();
   };
 
-  if (currentUser?.role !== 'Admin') {
+  if (isLoading) {
+    return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
+  }
+
+  if (!isAdmin) {
     return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage users.</Typography>;
   }
 
@@ -78,10 +84,10 @@ function UserManagement() {
       <Typography variant="h6" gutterBottom>Manage Users</Typography>
 
       {isMobile ? (
-        <Grid container spacing={2} justifyContent="center"> {/* Center grid items */}
+        <Grid container spacing={2} justifyContent="center">
           {users.map((user) => (
-            <Grid item xs={12} sm={8} md={6} key={user.id}> {/* Adjust item width and center */}
-              <Card variant="outlined" sx={{ width: '100%' }}> {/* Ensure card takes item width */}
+            <Grid item xs={12} sm={8} md={6} key={user.id}>
+              <Card variant="outlined" sx={{ width: '100%' }}>
                 <CardContent>
                   <Typography variant="subtitle1" component="div" gutterBottom>
                     {user.username}
@@ -95,7 +101,7 @@ function UserManagement() {
                       <Select
                         value={user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        disabled={user.id === currentUser.id}
+                        disabled={user.id === auth0User?.sub}
                         label="Role"
                       >
                         <MenuItem value="Member">Member</MenuItem>
@@ -107,7 +113,7 @@ function UserManagement() {
                       <Select
                         value={user.status}
                         onChange={(e) => handleStatusChange(user.id, e.target.value)}
-                        disabled={user.id === currentUser.id}
+                        disabled={user.id === auth0User?.sub}
                         label="Status"
                       >
                         <MenuItem value="Active">
@@ -129,7 +135,7 @@ function UserManagement() {
                     aria-label="delete user" 
                     color="error" 
                     onClick={() => openDeleteUserConfirm(user)}
-                    disabled={user.id === currentUser.id}
+                    disabled={user.id === auth0User?.sub}
                   >
                     <DeleteIcon fontSize="inherit" />
                   </IconButton>
@@ -167,7 +173,7 @@ function UserManagement() {
                       onChange={(e) => handleRoleChange(user.id, e.target.value)}
                       size="small"
                       variant="standard"
-                      disabled={user.id === currentUser.id}
+                      disabled={user.id === auth0User?.sub}
                     >
                       <MenuItem value="Member">Member</MenuItem>
                       <MenuItem value="Admin">Admin</MenuItem>
@@ -179,7 +185,7 @@ function UserManagement() {
                       onChange={(e) => handleStatusChange(user.id, e.target.value)}
                       size="small"
                       variant="standard"
-                      disabled={user.id === currentUser.id}
+                      disabled={user.id === auth0User?.sub}
                     >
                       <MenuItem value="Active">
                         <CheckCircleIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} color="success" /> Active
@@ -196,7 +202,7 @@ function UserManagement() {
                       aria-label="delete user" 
                       color="error" 
                       onClick={() => openDeleteUserConfirm(user)}
-                      disabled={user.id === currentUser.id}
+                      disabled={user.id === auth0User?.sub}
                     >
                       <DeleteIcon fontSize="inherit" />
                     </IconButton>
@@ -237,7 +243,7 @@ function UserManagement() {
 // --- Board Management Component ---
 function BoardManagement() {
   const { boards, addBoard, deleteBoard, messages, deleteMessage } = useBoards();
-  const { currentUser } = useAuth();
+  const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDesc, setNewBoardDesc] = useState('');
   const [deleteBoardConfirmOpen, setDeleteBoardConfirmOpen] = useState(false);
@@ -247,13 +253,13 @@ function BoardManagement() {
   const [deleteReason, setDeleteReason] = useState('');
   const [currentBoardIdForMessage, setCurrentBoardIdForMessage] = useState(null);
 
+  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+
   const handleAddBoard = () => {
     if (newBoardName.trim() && newBoardDesc.trim()) {
       addBoard(newBoardName.trim(), newBoardDesc.trim());
       setNewBoardName('');
       setNewBoardDesc('');
-    } else {
-      console.error("Board name and description cannot be empty.");
     }
   };
 
@@ -270,7 +276,6 @@ function BoardManagement() {
   const handleDeleteBoard = () => {
     if (boardToDelete) {
       deleteBoard(boardToDelete.id);
-      console.log(`Board "${boardToDelete.name}" deleted.`);
     }
     closeDeleteBoardConfirm();
   };
@@ -290,15 +295,16 @@ function BoardManagement() {
 
   const handleDeleteMessage = () => {
     if (messageToDelete && currentBoardIdForMessage && deleteReason.trim()) {
-      console.log(`Admin deleting message ID: ${messageToDelete.id} from board ID: ${currentBoardIdForMessage}`);
-      console.log(`Reason: ${deleteReason}`);
-      console.log(`(Placeholder) Emailing user ${messageToDelete.author} about deletion.`);
       deleteMessage(currentBoardIdForMessage, messageToDelete.id, deleteReason.trim());
     }
     closeDeleteMessageConfirm();
   };
 
-  if (currentUser?.role !== 'Admin') {
+  if (isLoading) {
+    return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
+  }
+
+  if (!isAdmin) {
     return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage boards and messages.</Typography>;
   }
 
@@ -337,43 +343,22 @@ function BoardManagement() {
       {boards.map((board) => (
         <Accordion key={board.id} sx={{ mb: 1 }}>
           <AccordionSummary
-            component="div" // Add this to render as a div
             expandIcon={<ExpandMoreIcon />}
             aria-controls={`panel-${board.id}-content`}
             id={`panel-${board.id}-header`}
-            // Add sx for cursor pointer to maintain click affordance
-            sx={{ 
-              '& .MuiAccordionSummary-content': { alignItems: 'center' }, // Align items vertically
-              cursor: 'pointer' // Keep the pointer cursor
-            }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap' }}>
-              {/* Use Box for text content to allow clicking the whole summary to expand */}
-              <Box 
-                onClick={(event) => {
-                  // Find the button element within the summary and click it programmatically
-                  // This is a workaround to trigger the expand/collapse when clicking the text area
-                  const summaryButton = event.currentTarget.closest('.MuiAccordionSummary-root');
-                  if (summaryButton && event.target === event.currentTarget) { // Only trigger if clicking the Box itself
-                     // We need a way to trigger the accordion toggle. 
-                     // Since AccordionSummary is now a div, we might need to manage the expanded state manually
-                     // OR find the underlying button/mechanism if MUI still provides one.
-                     // For now, let's just ensure the structure is valid.
-                     // A better approach might involve controlling the Accordion's expanded state.
-                  }
-                }}
-                sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }} // Allow text area to grow
-              >
+              <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
                 <ListItemText primary={board.name} secondary={board.description} sx={{ mr: 2 }} />
               </Box>
               <IconButton 
                 edge="end" 
                 aria-label="delete board" 
                 onClick={(event) => { 
-                  event.stopPropagation(); // Keep this to prevent clicks on icon bubbling up
+                  event.stopPropagation();
                   openDeleteBoardConfirm(board); 
                 }}
-                sx={{ ml: 'auto', flexShrink: 0 }} // Prevent icon from shrinking
+                sx={{ ml: 'auto', flexShrink: 0 }}
               >
                 <DeleteIcon />
               </IconButton>
@@ -385,7 +370,6 @@ function BoardManagement() {
                 (messages[board.id] || []).map((msg) => (
                   <React.Fragment key={msg.id}>
                     <ListItem
-                      component="div" // Ensure ListItem renders as a div, not a button
                       secondaryAction={
                         <IconButton edge="end" aria-label="delete message" onClick={() => openDeleteMessageConfirm(msg, board.id)}>
                           <DeleteIcon fontSize="small" />
@@ -476,14 +460,24 @@ function BoardManagement() {
 
 // --- Site Settings Component ---
 function SiteSettings() {
+  const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [siteName, setSiteName] = useState('Neighborhood Watch');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [allowRegistrations, setAllowRegistrations] = useState(true);
 
+  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+
   const handleSaveSettings = () => {
-    console.log('Saving settings:', { siteName, maintenanceMode, allowRegistrations });
     // TODO: Implement actual saving logic (e.g., API call)
   };
+
+  if (isLoading) {
+    return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
+  }
+
+  if (!isAdmin) {
+    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage site settings.</Typography>;
+  }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
@@ -520,26 +514,29 @@ function ActivityAlertsManagement() {
   const [alertText, setAlertText] = useState('');
   const [sendPush, setSendPush] = useState(false);
   const { alerts, addAlert } = useBoards();
-  const { currentUser } = useAuth();
+  const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
+
+  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
 
   const handlePostAlert = () => {
     if (!alertText.trim()) {
-      console.error("Alert text cannot be empty.");
       return;
     }
     const alertData = {
       text: alertText.trim(),
       pushed: sendPush,
-      author: currentUser?.username || 'Admin'
+      author: auth0User?.name || auth0User?.nickname || auth0User?.email || 'Admin'
     };
     addAlert(alertData);
-    console.log('Posting Alert via context:', alertData);
     setAlertText('');
     setSendPush(false);
-    // TODO: Add API call here to persist alert
   };
 
-  if (currentUser?.role !== 'Admin') {
+  if (isLoading) {
+    return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
+  }
+
+  if (!isAdmin) {
     return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage alerts.</Typography>;
   }
 
@@ -603,29 +600,27 @@ function ActivityAlertsManagement() {
 // --- Blog Management Component ---
 function BlogManagement() {
   const { blogPosts, addBlogPost, deleteBlogPost } = useBoards();
-  const { currentUser } = useAuth();
+  const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostImageUrl, setNewPostImageUrl] = useState('');
   const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
 
+  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+
   const handleAddPost = () => {
     if (newPostTitle.trim() && newPostContent.trim()) {
       const postData = {
         title: newPostTitle.trim(),
         content: newPostContent.trim(),
-        author: currentUser?.username || 'Admin',
+        author: auth0User?.name || auth0User?.nickname || auth0User?.email || 'Admin',
         imageUrl: newPostImageUrl.trim() || '/images/placeholder-default.jpg',
       };
       addBlogPost(postData);
-      console.log('Adding blog post:', postData);
       setNewPostTitle('');
       setNewPostContent('');
       setNewPostImageUrl('');
-      // TODO: Add API call here to persist blog post
-    } else {
-      console.error("Blog post title and content cannot be empty.");
     }
   };
 
@@ -642,13 +637,15 @@ function BlogManagement() {
   const handleDeletePost = () => {
     if (postToDelete) {
       deleteBlogPost(postToDelete.id);
-      console.log(`Blog post "${postToDelete.title}" deleted.`);
-      // TODO: Add API call here to delete blog post
     }
     closeDeletePostConfirm();
   };
 
-  if (currentUser?.role !== 'Admin') {
+  if (isLoading) {
+    return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
+  }
+
+  if (!isAdmin) {
     return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage blog posts.</Typography>;
   }
 
@@ -706,7 +703,6 @@ function BlogManagement() {
             blogPosts.map((post) => (
               <React.Fragment key={post.id}>
                 <ListItem
-                  component="div" // Add this line to ensure ListItem renders as a div
                   secondaryAction={
                     <IconButton edge="end" aria-label="delete post" onClick={() => openDeletePostConfirm(post)} color="error">
                       <DeleteIcon fontSize="small" />
@@ -756,11 +752,13 @@ function BlogManagement() {
 // --- Incident Management Component ---
 function IncidentManagement() {
   const { incidents, updateIncidentStatus, deleteIncident } = useIncidents();
-  const { currentUser } = useAuth();
+  const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [deleteIncidentConfirmOpen, setDeleteIncidentConfirmOpen] = useState(false);
   const [incidentToDelete, setIncidentToDelete] = useState(null);
-  const theme = useTheme(); // Added
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Added
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
 
   const handleStatusChange = (incidentId, newStatus) => {
     updateIncidentStatus(incidentId, newStatus);
@@ -783,7 +781,11 @@ function IncidentManagement() {
     closeDeleteIncidentConfirm();
   };
 
-  if (currentUser?.role !== 'Admin') {
+  if (isLoading) {
+    return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
+  }
+
+  if (!isAdmin) {
     return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage incidents.</Typography>;
   }
 
@@ -792,10 +794,10 @@ function IncidentManagement() {
       <Typography variant="h6" gutterBottom>Manage Incident Reports</Typography>
 
       {isMobile ? (
-        <Grid container spacing={2} justifyContent="center"> {/* Center grid items */}
+        <Grid container spacing={2} justifyContent="center">
           {incidents.map((incident) => (
-            <Grid item xs={12} sm={8} md={6} key={incident.id}> {/* Adjust item width and center */}
-              <Card variant="outlined" sx={{ width: '100%' }}> {/* Ensure card takes item width */}
+            <Grid item xs={12} sm={8} md={6} key={incident.id}>
+              <Card variant="outlined" sx={{ width: '100%' }}>
                 <CardContent>
                   <Typography variant="subtitle1" component="div" gutterBottom>
                     {incident.type} - {incident.location}
@@ -955,19 +957,37 @@ function a11yProps(index) {
 
 function AdminPage() {
   const [value, setValue] = useState(0);
-  const { currentUser } = useAuth();
+  const { user: auth0User, isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
 
-  if (currentUser?.role !== 'Admin') {
+  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+
+  if (isLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Loading admin dashboard...</Typography>
+      </Container>
+    );
+  }
+
+  if (!isAuthenticated || !isAdmin) {
      return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Access Denied
         </Typography>
-        <Typography>You do not have permission to view the admin dashboard.</Typography>
+        <Typography sx={{ mb: 2 }}>
+          You do not have permission to view the admin dashboard. Please log in with an administrator account.
+        </Typography>
+        {!isAuthenticated && (
+          <Button variant="contained" onClick={() => loginWithRedirect()}>
+            Log In
+          </Button>
+        )}
       </Container>
      );
   }

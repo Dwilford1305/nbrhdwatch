@@ -80,38 +80,30 @@ export const BoardProvider = ({ children }) => {
   };
 
   const deleteMessage = (boardId, messageId, reason) => {
-    // Placeholder for notification logic
-    console.log(`Deleting message ${messageId} from board ${boardId}. Reason: ${reason}`);
+    setMessages(prevMessages => ({
+      ...prevMessages,
+      [boardId]: (prevMessages[boardId] || []).filter(msg => msg.id !== messageId),
+    }));
     // TODO: Implement email notification logic here
-
-    setMessages(prevMessages => {
-      if (!prevMessages[boardId]) {
-        return prevMessages;
-      }
-      return {
-        ...prevMessages,
-        [boardId]: prevMessages[boardId].filter(msg => msg.id !== messageId),
-      };
-    });
+    // TODO: API call to delete message
   };
 
   const addAlert = (alertData) => {
-    const newAlert = {
-      ...alertData,
-      id: uuidv4(),
-      timestamp: new Date().toISOString(),
+    const newAlert = { 
+      ...alertData, 
+      id: `alert-${Date.now()}`, 
+      timestamp: new Date().toISOString() 
     };
-    setAlerts(prevAlerts => [newAlert, ...prevAlerts]);
-    // Placeholder for push notification logic
+    setAlerts(prevAlerts => [newAlert, ...prevAlerts]); // Add to beginning
+    // TODO: API call to persist alert
     if (newAlert.pushed) {
-      console.log('--- CONTEXT: Sending Push Notification for alert:', newAlert.text);
       // TODO: Implement actual push notification logic
     }
   };
 
   const deleteAlert = (alertId) => {
-    console.log(`Deleting alert ${alertId}`);
     setAlerts(prevAlerts => prevAlerts.filter(alert => alert.id !== alertId));
+    // TODO: API call to delete alert
   };
 
   const addBlogPost = (postData) => {

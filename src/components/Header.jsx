@@ -1,16 +1,20 @@
 import React from 'react';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'; // Import useNavigate
+import { Link as RouterLink } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Menu, MenuItem, ListItemIcon } from '@mui/material';
 import SecurityIcon from '@mui/icons-material/Security';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import { useAuth0 } from "@auth0/auth0-react";
 
 function Header() {
-  const location = useLocation();
-  const navigate = useNavigate(); // Add useNavigate
-  const { currentUser, logout, login, signup } = useAuth(); // Get currentUser and auth functions
+  const { 
+    user, 
+    isAuthenticated, 
+    isLoading, 
+    loginWithRedirect, 
+    logout 
+  } = useAuth0();
   const [anchorEl, setAnchorEl] = React.useState(null);
 
   const handleMenu = (event) => {
@@ -21,11 +25,30 @@ function Header() {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
-    logout();
-    handleClose();
-    navigate('/'); // Redirect to public page after logout
+  const handleLogin = () => {
+    loginWithRedirect();
   };
+
+  const handleSignup = () => {
+    loginWithRedirect({ authorizationParams: { screen_hint: 'signup' } });
+  };
+
+  const handleLogout = () => {
+    logout({ logoutParams: { returnTo: window.location.origin } });
+    handleClose();
+  };
+
+  if (isLoading) {
+    return (
+        <AppBar position="static" color="primary">
+            <Toolbar>
+                <SecurityIcon sx={{ mr: 1 }} />
+                <Typography variant="h6" sx={{ flexGrow: 1 }}>Neighborhood Watch</Typography>
+                <Typography>Loading...</Typography>
+            </Toolbar>
+        </AppBar>
+    );
+  }
 
   return (
     <AppBar position="static" color="primary">
@@ -34,17 +57,16 @@ function Header() {
         <Typography
           variant="h6"
           component={RouterLink}
-          to={currentUser ? "/members" : "/"} // Adjust link based on currentUser
+          to={isAuthenticated ? "/members" : "/"}
           sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}
         >
           Neighborhood Watch
         </Typography>
 
-        {/* Conditionally render buttons based on currentUser */}
-        {currentUser ? (
+        {isAuthenticated ? (
           <Box>
             <Typography variant="body1" component="span" sx={{ mr: 2 }}>
-              Hi, {currentUser.username}
+              Hi, {user.name || user.nickname || user.email}
             </Typography>
             <IconButton
               size="large"
@@ -77,13 +99,6 @@ function Header() {
                 </ListItemIcon>
                 Settings
               </MenuItem>
-              {/* Optionally show Admin link based on role */}
-              {currentUser.role === 'Admin' && (
-                <MenuItem component={RouterLink} to="/admin-preview" onClick={handleClose}>
-                  {/* Add an appropriate icon if desired */}
-                  Admin Panel
-                </MenuItem>
-              )}
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
                   <LogoutIcon fontSize="small" />
@@ -94,11 +109,10 @@ function Header() {
           </Box>
         ) : (
           <Box>
-            {/* Use the login/signup functions from context */}
-            <Button onClick={() => login()} color="inherit">
+            <Button onClick={handleLogin} color="inherit">
               Login
             </Button>
-            <Button onClick={() => signup()} color="inherit">
+            <Button onClick={handleSignup} color="inherit">
               Sign Up
             </Button>
           </Box>

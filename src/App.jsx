@@ -42,7 +42,8 @@ function App() {
           <Route 
             path="/admin" // Changed from /admin-preview
             element={
-              <ProtectedRoute role="Admin"> {/* Require Admin role */}
+              // Pass both Admin and ReadOnlyAdmin roles
+              <ProtectedRoute roles={['Admin', 'ReadOnlyAdmin']}> 
                 <AdminPage />
               </ProtectedRoute>
             } 

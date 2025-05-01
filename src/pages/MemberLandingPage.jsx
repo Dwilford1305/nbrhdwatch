@@ -105,16 +105,6 @@ function MemberLandingPage() {
         >
           Report Incident To Admin
         </Button>
-        {isAdmin && (
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={handleGoToAdmin}
-            size="large"
-          >
-            Admin Dashboard
-          </Button>
-        )}
       </Box>
       <Typography variant="caption" color="error" sx={{ mt: -3, mb: 4, display: 'block' }}>
         If you are in immediate danger or require emergency assistance, please call 911.

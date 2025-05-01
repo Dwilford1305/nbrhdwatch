@@ -5,7 +5,8 @@ import { CircularProgress, Box, Typography } from '@mui/material';
 
 const AUTH0_NAMESPACE = 'https://nbrhd-watch.com/roles'; // Ensure this matches AdminPage
 
-const ProtectedRoute = ({ children, role }) => {
+// Updated to accept an array of allowed roles
+const ProtectedRoute = ({ children, roles }) => {
   const { isAuthenticated, isLoading, user, loginWithRedirect } = useAuth0();
 
   if (isLoading) {
@@ -32,17 +33,20 @@ const ProtectedRoute = ({ children, role }) => {
     );
   }
 
-  // Check for required role if specified
+  // Check for required roles if specified
   const userRoles = user?.[AUTH0_NAMESPACE] || [];
-  if (role && !userRoles.includes(role)) {
-    // User is authenticated but doesn't have the required role
+  // Check if user has at least one of the required roles
+  const hasRequiredRole = roles ? roles.some(role => userRoles.includes(role)) : true;
+
+  if (!hasRequiredRole) {
+    // User is authenticated but doesn't have any of the required roles
     // Redirect to a general member page or show an 'Access Denied' message/component
     // For now, redirecting to /members as a fallback
     // Consider creating a dedicated 'Unauthorized' page later
     return <Navigate to="/members" replace />; 
   }
 
-  // User is authenticated and has the required role (or no role was required)
+  // User is authenticated and has the required role(s) (or no roles were required)
   return children;
 };
 

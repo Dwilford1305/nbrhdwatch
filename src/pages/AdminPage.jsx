@@ -29,23 +29,30 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useIncidents } from '../contexts/IncidentContext';
 
 const AUTH0_NAMESPACE = 'https://nbrhd-watch.com/roles';
+const ADMIN_ROLE = 'Admin';
+const READ_ONLY_ADMIN_ROLE = 'ReadOnlyAdmin';
+
+// Helper function to check roles
+const hasRole = (user, role) => {
+  return user?.[AUTH0_NAMESPACE]?.includes(role);
+};
 
 // --- User Management Component ---
-function UserManagement() {
+function UserManagement({ isFullAdmin }) {
   const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [deleteUserConfirmOpen, setDeleteUserConfirmOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const canView = hasRole(auth0User, ADMIN_ROLE) || hasRole(auth0User, READ_ONLY_ADMIN_ROLE);
 
   const users = React.useMemo(() => {
-    if (!auth0User || !isAdmin) {
+    if (!auth0User || !canView) {
       return [];
     }
     const roles = auth0User[AUTH0_NAMESPACE] || [];
-    const primaryRole = roles.includes('Admin') ? 'Admin' : (roles.includes('Member') ? 'Member' : 'Unknown');
+    const primaryRole = roles.includes(ADMIN_ROLE) ? ADMIN_ROLE : (roles.includes(READ_ONLY_ADMIN_ROLE) ? READ_ONLY_ADMIN_ROLE : (roles.includes('Member') ? 'Member' : 'Unknown'));
 
     return [
       {
@@ -57,7 +64,7 @@ function UserManagement() {
         joined: auth0User.updated_at ? new Date(auth0User.updated_at).toLocaleDateString() : 'N/A',
       },
     ];
-  }, [auth0User, isAdmin]);
+  }, [auth0User, canView]);
 
   const handleRoleChange = (userId, newRole) => {
     console.warn("Role change requires backend implementation with Auth0 Management API.");
@@ -89,13 +96,14 @@ function UserManagement() {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
   }
 
-  if (!isAdmin) {
-    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage users.</Typography>;
+  if (!canView) {
+    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin or read-only admin to view this section.</Typography>;
   }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" gutterBottom>Manage Users</Typography>
+      {!isFullAdmin && <Typography color="text.secondary" sx={{ mb: 1 }}>Read-only mode: Changes are disabled.</Typography>}
       <Typography variant="caption" display="block" sx={{ mb: 2 }}>
         Note: Currently showing only the logged-in administrator. Displaying all users requires backend integration.
       </Typography>
@@ -118,7 +126,7 @@ function UserManagement() {
                       <Select
                         value={user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        disabled={user.id === auth0User?.sub}
+                        disabled={user.id === auth0User?.sub || !isFullAdmin}
                         label="Role"
                       >
                         <MenuItem value="Member">Member</MenuItem>
@@ -130,7 +138,7 @@ function UserManagement() {
                       <Select
                         value={user.status}
                         onChange={(e) => handleStatusChange(user.id, e.target.value)}
-                        disabled={user.id === auth0User?.sub}
+                        disabled={user.id === auth0User?.sub || !isFullAdmin}
                         label="Status"
                       >
                         <MenuItem value="Active">
@@ -152,7 +160,7 @@ function UserManagement() {
                     aria-label="delete user" 
                     color="error" 
                     onClick={() => openDeleteUserConfirm(user)}
-                    disabled={user.id === auth0User?.sub}
+                    disabled={user.id === auth0User?.sub || !isFullAdmin}
                   >
                     <DeleteIcon fontSize="inherit" />
                   </IconButton>
@@ -190,7 +198,7 @@ function UserManagement() {
                       onChange={(e) => handleRoleChange(user.id, e.target.value)}
                       size="small"
                       variant="standard"
-                      disabled={user.id === auth0User?.sub}
+                      disabled={user.id === auth0User?.sub || !isFullAdmin}
                     >
                       <MenuItem value="Member">Member</MenuItem>
                       <MenuItem value="Admin">Admin</MenuItem>
@@ -202,7 +210,7 @@ function UserManagement() {
                       onChange={(e) => handleStatusChange(user.id, e.target.value)}
                       size="small"
                       variant="standard"
-                      disabled={user.id === auth0User?.sub}
+                      disabled={user.id === auth0User?.sub || !isFullAdmin}
                     >
                       <MenuItem value="Active">
                         <CheckCircleIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} color="success" /> Active
@@ -219,7 +227,7 @@ function UserManagement() {
                       aria-label="delete user" 
                       color="error" 
                       onClick={() => openDeleteUserConfirm(user)}
-                      disabled={user.id === auth0User?.sub}
+                      disabled={user.id === auth0User?.sub || !isFullAdmin}
                     >
                       <DeleteIcon fontSize="inherit" />
                     </IconButton>
@@ -247,7 +255,7 @@ function UserManagement() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeleteUserConfirm}>Cancel</Button>
-          <Button onClick={handleDeleteUser} color="error" autoFocus>
+          <Button onClick={handleDeleteUser} color="error" autoFocus disabled={!isFullAdmin}>
             Delete User (Requires Backend)
           </Button>
         </DialogActions>
@@ -258,7 +266,7 @@ function UserManagement() {
 // --- End User Management Component ---
 
 // --- Board Management Component ---
-function BoardManagement() {
+function BoardManagement({ isFullAdmin }) {
   const { boards, addBoard, deleteBoard, messages, deleteMessage } = useBoards();
   const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [newBoardName, setNewBoardName] = useState('');
@@ -270,7 +278,7 @@ function BoardManagement() {
   const [deleteReason, setDeleteReason] = useState('');
   const [currentBoardIdForMessage, setCurrentBoardIdForMessage] = useState(null);
 
-  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const canView = hasRole(auth0User, ADMIN_ROLE) || hasRole(auth0User, READ_ONLY_ADMIN_ROLE);
 
   const handleAddBoard = () => {
     if (newBoardName.trim() && newBoardDesc.trim()) {
@@ -321,13 +329,14 @@ function BoardManagement() {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
   }
 
-  if (!isAdmin) {
-    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage boards and messages.</Typography>;
+  if (!canView) {
+    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin or read-only admin to view this section.</Typography>;
   }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" gutterBottom>Manage Message Boards & Messages</Typography>
+      {!isFullAdmin && <Typography color="text.secondary" sx={{ mb: 1 }}>Read-only mode: Changes are disabled.</Typography>}
       
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3, alignItems: 'stretch' }}>
         <TextField
@@ -337,6 +346,7 @@ function BoardManagement() {
           onChange={(e) => setNewBoardName(e.target.value)}
           size="small"
           sx={{ flexGrow: 1 }}
+          disabled={!isFullAdmin}
         />
         <TextField
           label="Description"
@@ -345,12 +355,14 @@ function BoardManagement() {
           onChange={(e) => setNewBoardDesc(e.target.value)}
           size="small"
           sx={{ flexGrow: 2 }}
+          disabled={!isFullAdmin}
         />
         <Button 
           variant="contained" 
           onClick={handleAddBoard} 
           startIcon={<AddIcon />} 
           sx={{ height: { xs: 'auto', sm: '40px' }, mt: { xs: 1, sm: 0 } }}
+          disabled={!isFullAdmin || !newBoardName.trim() || !newBoardDesc.trim()}
         >
           Add Board
         </Button>
@@ -373,9 +385,10 @@ function BoardManagement() {
                 aria-label="delete board" 
                 onClick={(event) => { 
                   event.stopPropagation();
-                  openDeleteBoardConfirm(board); 
+                  if (isFullAdmin) openDeleteBoardConfirm(board);
                 }}
                 sx={{ ml: 'auto', flexShrink: 0 }}
+                disabled={!isFullAdmin}
               >
                 <DeleteIcon />
               </IconButton>
@@ -388,7 +401,7 @@ function BoardManagement() {
                   <React.Fragment key={msg.id}>
                     <ListItem
                       secondaryAction={
-                        <IconButton edge="end" aria-label="delete message" onClick={() => openDeleteMessageConfirm(msg, board.id)}>
+                        <IconButton edge="end" aria-label="delete message" onClick={() => { if (isFullAdmin) openDeleteMessageConfirm(msg, board.id); }} disabled={!isFullAdmin}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       }
@@ -427,7 +440,7 @@ function BoardManagement() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeleteBoardConfirm}>Cancel</Button>
-          <Button onClick={handleDeleteBoard} color="error" autoFocus>
+          <Button onClick={handleDeleteBoard} color="error" autoFocus disabled={!isFullAdmin}>
             Delete Board
           </Button>
         </DialogActions>
@@ -456,6 +469,7 @@ function BoardManagement() {
             value={deleteReason}
             onChange={(e) => setDeleteReason(e.target.value)}
             required
+            disabled={!isFullAdmin}
           />
         </DialogContent>
         <DialogActions>
@@ -463,7 +477,7 @@ function BoardManagement() {
           <Button
             onClick={handleDeleteMessage}
             color="error"
-            disabled={!deleteReason.trim()}
+            disabled={!isFullAdmin || !deleteReason.trim()}
           >
             Delete Message
           </Button>
@@ -476,13 +490,13 @@ function BoardManagement() {
 // --- End Board Management Component ---
 
 // --- Site Settings Component ---
-function SiteSettings() {
+function SiteSettings({ isFullAdmin }) {
   const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [siteName, setSiteName] = useState('Neighborhood Watch');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [allowRegistrations, setAllowRegistrations] = useState(true);
 
-  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const canView = hasRole(auth0User, ADMIN_ROLE) || hasRole(auth0User, READ_ONLY_ADMIN_ROLE);
 
   const handleSaveSettings = () => {
     // TODO: Implement actual saving logic (e.g., API call)
@@ -492,13 +506,14 @@ function SiteSettings() {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
   }
 
-  if (!isAdmin) {
-    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage site settings.</Typography>;
+  if (!canView) {
+    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin or read-only admin to view this section.</Typography>;
   }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" gutterBottom>Site Configuration</Typography>
+      {!isFullAdmin && <Typography color="text.secondary" sx={{ mb: 1 }}>Read-only mode: Changes are disabled.</Typography>}
       <FormGroup sx={{ mb: 3 }}>
         <TextField
           label="Site Name"
@@ -507,18 +522,22 @@ function SiteSettings() {
           onChange={(e) => setSiteName(e.target.value)}
           fullWidth
           sx={{ mb: 2 }}
+          disabled={!isFullAdmin}
+          InputProps={{
+            readOnly: !isFullAdmin,
+          }}
         />
         <FormControlLabel
-          control={<Switch checked={maintenanceMode} onChange={(e) => setMaintenanceMode(e.target.checked)} />}
+          control={<Switch checked={maintenanceMode} onChange={(e) => setMaintenanceMode(e.target.checked)} disabled={!isFullAdmin} />}
           label="Enable Maintenance Mode"
         />
         <FormControlLabel
-          control={<Switch checked={allowRegistrations} onChange={(e) => setAllowRegistrations(e.target.checked)} />}
+          control={<Switch checked={allowRegistrations} onChange={(e) => setAllowRegistrations(e.target.checked)} disabled={!isFullAdmin} />}
           label="Allow New User Registrations"
         />
       </FormGroup>
       
-      <Button variant="contained" onClick={handleSaveSettings}>
+      <Button variant="contained" onClick={handleSaveSettings} disabled={!isFullAdmin}>
         Save Settings
       </Button>
     </Box>
@@ -527,13 +546,13 @@ function SiteSettings() {
 // --- End Site Settings Component ---
 
 // --- Activity & Alerts Management Component ---
-function ActivityAlertsManagement() {
+function ActivityAlertsManagement({ isFullAdmin }) {
   const [alertText, setAlertText] = useState('');
   const [sendPush, setSendPush] = useState(false);
   const { alerts, addAlert } = useBoards();
   const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
 
-  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const canView = hasRole(auth0User, ADMIN_ROLE) || hasRole(auth0User, READ_ONLY_ADMIN_ROLE);
 
   const handlePostAlert = () => {
     if (!alertText.trim()) {
@@ -553,13 +572,14 @@ function ActivityAlertsManagement() {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
   }
 
-  if (!isAdmin) {
-    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage alerts.</Typography>;
+  if (!canView) {
+    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin or read-only admin to view this section.</Typography>;
   }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" gutterBottom>Post New Alert</Typography>
+      {!isFullAdmin && <Typography color="text.secondary" sx={{ mb: 1 }}>Read-only mode: Changes are disabled.</Typography>}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
         <TextField
           label="Alert Message"
@@ -569,16 +589,20 @@ function ActivityAlertsManagement() {
           rows={3}
           value={alertText}
           onChange={(e) => setAlertText(e.target.value)}
+          disabled={!isFullAdmin}
+          InputProps={{
+            readOnly: !isFullAdmin,
+          }}
         />
         <FormControlLabel
-          control={<Checkbox checked={sendPush} onChange={(e) => setSendPush(e.target.checked)} />}
+          control={<Checkbox checked={sendPush} onChange={(e) => setSendPush(e.target.checked)} disabled={!isFullAdmin} />}
           label="Send Push Notification to All Users"
         />
         <Button
           variant="contained"
           onClick={handlePostAlert}
           startIcon={<SendIcon />}
-          disabled={!alertText.trim()}
+          disabled={!isFullAdmin || !alertText.trim()}
           sx={{ alignSelf: 'flex-start' }}
         >
           Post Alert
@@ -615,7 +639,7 @@ function ActivityAlertsManagement() {
 // --- End Activity & Alerts Management Component ---
 
 // --- Blog Management Component ---
-function BlogManagement() {
+function BlogManagement({ isFullAdmin }) {
   const { blogPosts, addBlogPost, deleteBlogPost } = useBoards();
   const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [newPostTitle, setNewPostTitle] = useState('');
@@ -624,7 +648,7 @@ function BlogManagement() {
   const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
 
-  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const canView = hasRole(auth0User, ADMIN_ROLE) || hasRole(auth0User, READ_ONLY_ADMIN_ROLE);
 
   const handleAddPost = () => {
     if (newPostTitle.trim() && newPostContent.trim()) {
@@ -662,13 +686,14 @@ function BlogManagement() {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
   }
 
-  if (!isAdmin) {
-    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage blog posts.</Typography>;
+  if (!canView) {
+    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin or read-only admin to view this section.</Typography>;
   }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" gutterBottom>Manage Blog Posts</Typography>
+      {!isFullAdmin && <Typography color="text.secondary" sx={{ mb: 1 }}>Read-only mode: Changes are disabled.</Typography>}
       
       <Paper elevation={2} sx={{ p: { xs: 1, sm: 2 }, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Create New Post</Typography>
@@ -679,6 +704,8 @@ function BlogManagement() {
           value={newPostTitle}
           onChange={(e) => setNewPostTitle(e.target.value)}
           sx={{ mb: 2 }}
+          disabled={!isFullAdmin}
+          InputProps={{ readOnly: !isFullAdmin }}
         />
         <TextField
           label="Image URL (optional, e.g., /images/my-image.jpg)"
@@ -688,6 +715,8 @@ function BlogManagement() {
           onChange={(e) => setNewPostImageUrl(e.target.value)}
           sx={{ mb: 2 }}
           placeholder="Defaults to /images/placeholder-default.jpg if left empty"
+          disabled={!isFullAdmin}
+          InputProps={{ readOnly: !isFullAdmin }}
         />
         <TextField
           label="Post Content"
@@ -698,12 +727,14 @@ function BlogManagement() {
           value={newPostContent}
           onChange={(e) => setNewPostContent(e.target.value)}
           sx={{ mb: 2 }}
+          disabled={!isFullAdmin}
+          InputProps={{ readOnly: !isFullAdmin }}
         />
         <Button 
           variant="contained" 
           onClick={handleAddPost} 
           startIcon={<AddIcon />} 
-          disabled={!newPostTitle.trim() || !newPostContent.trim()}
+          disabled={!isFullAdmin || !newPostTitle.trim() || !newPostContent.trim()}
         >
           Add Blog Post
         </Button>
@@ -721,7 +752,7 @@ function BlogManagement() {
               <React.Fragment key={post.id}>
                 <ListItem
                   secondaryAction={
-                    <IconButton edge="end" aria-label="delete post" onClick={() => openDeletePostConfirm(post)} color="error">
+                    <IconButton edge="end" aria-label="delete post" onClick={() => { if (isFullAdmin) openDeletePostConfirm(post); }} color="error" disabled={!isFullAdmin}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   }
@@ -755,7 +786,7 @@ function BlogManagement() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeletePostConfirm}>Cancel</Button>
-          <Button onClick={handleDeletePost} color="error" autoFocus>
+          <Button onClick={handleDeletePost} color="error" autoFocus disabled={!isFullAdmin}>
             Delete Post
           </Button>
         </DialogActions>
@@ -767,7 +798,7 @@ function BlogManagement() {
 // --- End Blog Management Component ---
 
 // --- Incident Management Component ---
-function IncidentManagement() {
+function IncidentManagement({ isFullAdmin }) {
   const { incidents, updateIncidentStatus, deleteIncident } = useIncidents();
   const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
   const [deleteIncidentConfirmOpen, setDeleteIncidentConfirmOpen] = useState(false);
@@ -775,7 +806,7 @@ function IncidentManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const canView = hasRole(auth0User, ADMIN_ROLE) || hasRole(auth0User, READ_ONLY_ADMIN_ROLE);
 
   const handleStatusChange = (incidentId, newStatus) => {
     updateIncidentStatus(incidentId, newStatus);
@@ -802,13 +833,14 @@ function IncidentManagement() {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 2 }} />;
   }
 
-  if (!isAdmin) {
-    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin to manage incidents.</Typography>;
+  if (!canView) {
+    return <Typography sx={{ p: 2 }}>Access Denied. You must be an admin or read-only admin to view this section.</Typography>;
   }
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" gutterBottom>Manage Incident Reports</Typography>
+      {!isFullAdmin && <Typography color="text.secondary" sx={{ mb: 1 }}>Read-only mode: Changes are disabled.</Typography>}
 
       {isMobile ? (
         <Grid container spacing={2} justifyContent="center">
@@ -834,6 +866,7 @@ function IncidentManagement() {
                       value={incident.status}
                       onChange={(e) => handleStatusChange(incident.id, e.target.value)}
                       label="Status"
+                      disabled={!isFullAdmin}
                     >
                       <MenuItem value="New">New</MenuItem>
                       <MenuItem value="Investigating">Investigating</MenuItem>
@@ -847,7 +880,8 @@ function IncidentManagement() {
                     size="small" 
                     aria-label="delete incident" 
                     color="error" 
-                    onClick={() => openDeleteIncidentConfirm(incident)}
+                    onClick={() => { if (isFullAdmin) openDeleteIncidentConfirm(incident); }}
+                    disabled={!isFullAdmin}
                   >
                     <DeleteIcon fontSize="inherit" />
                   </IconButton>
@@ -892,6 +926,7 @@ function IncidentManagement() {
                         onChange={(e) => handleStatusChange(incident.id, e.target.value)}
                         displayEmpty
                         inputProps={{ 'aria-label': 'Incident Status' }}
+                        disabled={!isFullAdmin}
                       >
                         <MenuItem value="New">New</MenuItem>
                         <MenuItem value="Investigating">Investigating</MenuItem>
@@ -905,7 +940,8 @@ function IncidentManagement() {
                       size="small" 
                       aria-label="delete incident" 
                       color="error" 
-                      onClick={() => openDeleteIncidentConfirm(incident)}
+                      onClick={() => { if (isFullAdmin) openDeleteIncidentConfirm(incident); }}
+                      disabled={!isFullAdmin}
                     >
                       <DeleteIcon fontSize="inherit" />
                     </IconButton>
@@ -935,7 +971,7 @@ function IncidentManagement() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeleteIncidentConfirm}>Cancel</Button>
-          <Button onClick={handleDeleteIncident} color="error" autoFocus>
+          <Button onClick={handleDeleteIncident} color="error" autoFocus disabled={!isFullAdmin}>
             Delete Incident
           </Button>
         </DialogActions>
@@ -980,7 +1016,9 @@ function AdminPage() {
     setValue(newValue);
   };
 
-  const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const isFullAdmin = isAuthenticated && hasRole(auth0User, ADMIN_ROLE);
+  const isReadOnlyAdmin = isAuthenticated && hasRole(auth0User, READ_ONLY_ADMIN_ROLE);
+  const canViewAdminDashboard = isFullAdmin || isReadOnlyAdmin;
 
   if (isLoading) {
     return (
@@ -991,14 +1029,14 @@ function AdminPage() {
     );
   }
 
-  if (!isAuthenticated || !isAdmin) {
+  if (!isAuthenticated || !canViewAdminDashboard) {
      return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Access Denied
         </Typography>
         <Typography sx={{ mb: 2 }}>
-          You do not have permission to view the admin dashboard. Please log in with an administrator account.
+          You do not have permission to view the admin dashboard. Please log in with an administrator or read-only administrator account.
         </Typography>
         {!isAuthenticated && (
           <Button variant="contained" onClick={() => loginWithRedirect()}>
@@ -1012,7 +1050,7 @@ function AdminPage() {
   return (
     <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom sx={{ fontSize: { xs: '1.8rem', sm: '2.125rem' } }}>
-        Admin Dashboard
+        Admin Dashboard {isReadOnlyAdmin && !isFullAdmin && '(Read-Only)'}
       </Typography>
       
       <Paper elevation={3}>
@@ -1034,22 +1072,22 @@ function AdminPage() {
           </Tabs>
         </Box>
         <TabPanel value={value} index={0} sx={{ p: { xs: 1, sm: 3 } }}>
-          <UserManagement />
+          <UserManagement isFullAdmin={isFullAdmin} />
         </TabPanel>
         <TabPanel value={value} index={1} sx={{ p: { xs: 1, sm: 3 } }}>
-          <BoardManagement />
+          <BoardManagement isFullAdmin={isFullAdmin} />
         </TabPanel>
         <TabPanel value={value} index={2} sx={{ p: { xs: 1, sm: 3 } }}>
-          <IncidentManagement />
+          <IncidentManagement isFullAdmin={isFullAdmin} />
         </TabPanel>
         <TabPanel value={value} index={3} sx={{ p: { xs: 1, sm: 3 } }}>
-          <ActivityAlertsManagement />
+          <ActivityAlertsManagement isFullAdmin={isFullAdmin} />
         </TabPanel>
         <TabPanel value={value} index={4} sx={{ p: { xs: 1, sm: 3 } }}>
-          <BlogManagement />
+          <BlogManagement isFullAdmin={isFullAdmin} />
         </TabPanel>
         <TabPanel value={value} index={5} sx={{ p: { xs: 1, sm: 3 } }}>
-          <SiteSettings />
+          <SiteSettings isFullAdmin={isFullAdmin} />
         </TabPanel>
       </Paper>
     </Container>

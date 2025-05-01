@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import React, { useMemo, useState, useEffect } from 'react'; // Import useEffect
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom'; // Import useLocation
 import { Container, Typography, Box, Grid, Paper, Button, List, ListItem, ListItemText, ListItemIcon, Divider, Stack, CircularProgress } from '@mui/material';
 import MapIcon from '@mui/icons-material/Map';
 import ForumIcon from '@mui/icons-material/Forum';
@@ -14,7 +14,8 @@ import { useBoards } from '../contexts/BoardContext';
 import IncidentReportForm from '../components/IncidentReportForm';
 import { useAuth0 } from "@auth0/auth0-react";
 
-// Placeholder data (can be replaced with API calls later)
+const AUTH0_NAMESPACE = 'https://nbrhd-watch.com/roles';
+
 const upcomingEvents = [
   { id: 1, name: 'Monthly Watch Meeting', date: 'May 15th, 7:00 PM' },
   { id: 2, name: 'Community BBQ', date: 'June 4th, 12:00 PM' },
@@ -29,8 +30,23 @@ function MemberLandingPage() {
   const { boards, messages, alerts, blogPosts } = useBoards();
   const { user, isAuthenticated, isLoading } = useAuth0();
   const [isReportFormOpen, setIsReportFormOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation(); // Get location object
 
-  // Combine and sort messages and alerts for the recent activity feed
+  const isAdmin = isAuthenticated && user?.[AUTH0_NAMESPACE]?.includes('Admin');
+  const cameFromLogin = location.state?.fromLogin; // Check for the state flag
+
+  // Effect to redirect admin users to /admin ONLY after login
+  useEffect(() => {
+    // Only redirect if not loading, user is authenticated, is an admin, AND came directly from login
+    if (!isLoading && isAuthenticated && isAdmin && cameFromLogin) {
+      console.log("User is admin and came from login, redirecting to /admin..."); // Optional: for debugging
+      // Clear the state flag after using it, so manual navigation doesn't re-trigger
+      navigate('/admin', { replace: true, state: {} }); 
+    }
+    // Dependency array: run when loading state changes, auth state changes, isAdmin status changes, or location state changes
+  }, [isLoading, isAuthenticated, isAdmin, navigate, cameFromLogin]); // Add cameFromLogin
+
   const combinedActivity = useMemo(() => {
     const allMessages = Object.entries(messages).flatMap(([boardId, boardMessages]) => {
       const board = boards.find(b => b.id === boardId);
@@ -60,8 +76,12 @@ function MemberLandingPage() {
     setIsReportFormOpen(false);
   };
 
-  // Show loading state while Auth0 is initializing or user is not yet authenticated
-  if (isLoading) {
+  const handleGoToAdmin = () => {
+    navigate('/admin');
+  };
+
+  // Show loading state while Auth0 is initializing OR if we are about to redirect admin *after login*
+  if (isLoading || (isAuthenticated && isAdmin && cameFromLogin)) { // Only show loading for redirect if cameFromLogin
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4, textAlign: 'center' }}>
         <CircularProgress />
@@ -76,7 +96,7 @@ function MemberLandingPage() {
         Welcome{user ? `, ${user.name || user.nickname || user.email}` : '!'}
       </Typography>
 
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <Button
           variant="contained"
           startIcon={<AddAlertIcon />}
@@ -85,10 +105,20 @@ function MemberLandingPage() {
         >
           Report Incident To Admin
         </Button>
-        <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-          If you are in immediate danger or require emergency assistance, please call 911.
-        </Typography>
+        {isAdmin && (
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={handleGoToAdmin}
+            size="large"
+          >
+            Admin Dashboard
+          </Button>
+        )}
       </Box>
+      <Typography variant="caption" color="error" sx={{ mt: -3, mb: 4, display: 'block' }}>
+        If you are in immediate danger or require emergency assistance, please call 911.
+      </Typography>
 
       <Box sx={{
         display: 'flex',
@@ -222,7 +252,6 @@ function MemberLandingPage() {
                   Community Sponsors
                 </Typography>
                 <Stack spacing={2}>
-                  {/* Placeholder Sponsor A */}
                   <Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <BusinessIcon color="action" sx={{ mr: 1 }} />
@@ -231,7 +260,6 @@ function MemberLandingPage() {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Support our local sponsors!</Typography>
                     <Button size="small" variant="outlined">Visit Website</Button>
                   </Box>
-                  {/* Placeholder Sponsor B */}
                   <Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <BusinessIcon color="action" sx={{ mr: 1 }} />

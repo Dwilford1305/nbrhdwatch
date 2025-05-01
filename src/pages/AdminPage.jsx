@@ -28,17 +28,11 @@ import { useBoards } from '../contexts/BoardContext';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useIncidents } from '../contexts/IncidentContext';
 
-const AUTH0_NAMESPACE = 'https://neighborhood-watch.com/roles';
+const AUTH0_NAMESPACE = 'https://nbrhd-watch.com/roles';
 
 // --- User Management Component ---
 function UserManagement() {
   const { user: auth0User, isAuthenticated, isLoading } = useAuth0();
-  const [users, setUsers] = useState([
-    { id: 'user123', username: 'Current User', email: 'current@example.com', role: 'Admin', status: 'Active', joined: '2025-01-15' },
-    { id: 'user456', username: 'Jane D.', email: 'jane@example.com', role: 'Member', status: 'Active', joined: '2025-02-20' },
-    { id: 'user789', username: 'John S.', email: 'john@example.com', role: 'Member', status: 'Suspended', joined: '2025-03-10' },
-    { id: 'userABC', username: 'Newbie', email: 'new@example.com', role: 'Member', status: 'Active', joined: '2025-04-25' },
-  ]);
   const [deleteUserConfirmOpen, setDeleteUserConfirmOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const theme = useTheme();
@@ -46,17 +40,39 @@ function UserManagement() {
 
   const isAdmin = isAuthenticated && auth0User?.[AUTH0_NAMESPACE]?.includes('Admin');
 
+  const users = React.useMemo(() => {
+    if (!auth0User || !isAdmin) {
+      return [];
+    }
+    const roles = auth0User[AUTH0_NAMESPACE] || [];
+    const primaryRole = roles.includes('Admin') ? 'Admin' : (roles.includes('Member') ? 'Member' : 'Unknown');
+
+    return [
+      {
+        id: auth0User.sub,
+        username: auth0User.name || auth0User.nickname || 'N/A',
+        email: auth0User.email || 'N/A',
+        role: primaryRole,
+        status: 'Active',
+        joined: auth0User.updated_at ? new Date(auth0User.updated_at).toLocaleDateString() : 'N/A',
+      },
+    ];
+  }, [auth0User, isAdmin]);
+
   const handleRoleChange = (userId, newRole) => {
-    setUsers(users.map(user => user.id === userId ? { ...user, role: newRole } : user));
+    console.warn("Role change requires backend implementation with Auth0 Management API.");
   };
 
   const handleStatusChange = (userId, newStatus) => {
-    setUsers(users.map(user => user.id === userId ? { ...user, status: newStatus } : user));
+    console.warn("Status change requires backend implementation with Auth0 Management API.");
   };
 
   const openDeleteUserConfirm = (user) => {
-    setUserToDelete(user);
-    setDeleteUserConfirmOpen(true);
+    if (user.id === auth0User?.sub) {
+      console.log("Cannot delete self.");
+      return;
+    }
+    console.warn("User deletion requires backend implementation with Auth0 Management API.");
   };
 
   const closeDeleteUserConfirm = () => {
@@ -65,9 +81,7 @@ function UserManagement() {
   };
 
   const handleDeleteUser = () => {
-    if (userToDelete) {
-      setUsers(users.filter(user => user.id !== userToDelete.id));
-    }
+    console.warn("User deletion requires backend implementation with Auth0 Management API.");
     closeDeleteUserConfirm();
   };
 
@@ -82,6 +96,9 @@ function UserManagement() {
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       <Typography variant="h6" gutterBottom>Manage Users</Typography>
+      <Typography variant="caption" display="block" sx={{ mb: 2 }}>
+        Note: Currently showing only the logged-in administrator. Displaying all users requires backend integration.
+      </Typography>
 
       {isMobile ? (
         <Grid container spacing={2} justifyContent="center">
@@ -225,13 +242,13 @@ function UserManagement() {
         <DialogContent>
           <DialogContentText>
             Are you sure you want to delete the user "{userToDelete?.username}"? 
-            This action cannot be undone.
+            This action cannot be undone and requires backend implementation.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeleteUserConfirm}>Cancel</Button>
           <Button onClick={handleDeleteUser} color="error" autoFocus>
-            Delete User
+            Delete User (Requires Backend)
           </Button>
         </DialogActions>
       </Dialog>
